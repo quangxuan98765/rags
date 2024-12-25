@@ -1,49 +1,52 @@
 """Utils."""
 
-from llama_index.llms import OpenAI, Anthropic, Replicate
-from llama_index.llms.base import LLM
-from llama_index.llms.utils import resolve_llm
+from llama_index.llms.openai import OpenAI
+from llama_index.llms.anthropic import Anthropic
+from llama_index.llms.gemini import Gemini
+from llama_index.core.llms.llm import LLM
+from llama_index.core.llms.utils import resolve_llm
 from pydantic import BaseModel, Field
 import os
-from llama_index.agent import OpenAIAgent, ReActAgent
-from llama_index.agent.react.prompts import REACT_CHAT_SYSTEM_HEADER
-from llama_index import (
+from llama_index.agent.openai import OpenAIAgent
+from llama_index.core.agent import ReActAgent
+from llama_index.core.agent.react.prompts import REACT_CHAT_SYSTEM_HEADER
+from llama_index.core import (
     VectorStoreIndex,
     SummaryIndex,
     ServiceContext,
     Document,
 )
 from typing import List, cast, Optional
-from llama_index import SimpleDirectoryReader
-from llama_index.embeddings.utils import resolve_embed_model
-from llama_index.tools import QueryEngineTool, ToolMetadata
-from llama_index.agent.types import BaseAgent
-from llama_index.chat_engine.types import BaseChatEngine
-from llama_index.agent.react.formatter import ReActChatFormatter
-from llama_index.llms.openai_utils import is_function_calling_model
-from llama_index.chat_engine import CondensePlusContextChatEngine
+from llama_index.core import SimpleDirectoryReader
+from llama_index.core.embeddings.utils import resolve_embed_model
+from llama_index.core.tools import QueryEngineTool, ToolMetadata
+from llama_index.core.agent.types import BaseAgent
+from llama_index.core.chat_engine.types import BaseChatEngine
+from llama_index.core.agent.react.formatter import ReActChatFormatter
+from llama_index.llms.openai.base import is_function_calling_model
+from llama_index.core.chat_engine import CondensePlusContextChatEngine
 from core.builder_config import BUILDER_LLM
 from typing import Dict, Tuple, Any
 import streamlit as st
 
-from llama_index.callbacks import CallbackManager, trace_method
+from llama_index.core.callbacks import CallbackManager, trace_method
 from core.callback_manager import StreamlitFunctionsCallbackHandler
-from llama_index.schema import ImageNode, NodeWithScore
+from llama_index.core.schema import ImageNode, NodeWithScore
 
 ### BETA: Multi-modal
-from llama_index.indices.multi_modal.base import MultiModalVectorStoreIndex
+from llama_index.core.indices.multi_modal.base import MultiModalVectorStoreIndex
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
-from llama_index.indices.multi_modal.retriever import (
+from llama_index.core.indices.multi_modal.retriever import (
     MultiModalVectorIndexRetriever,
 )
-from llama_index.llms import ChatMessage
-from llama_index.query_engine.multi_modal import SimpleMultiModalQueryEngine
-from llama_index.chat_engine.types import (
+from llama_index.core.llms import ChatMessage
+from llama_index.core.query_engine.multi_modal import SimpleMultiModalQueryEngine
+from llama_index.core.chat_engine.types import (
     AGENT_CHAT_RESPONSE_TYPE,
     StreamingAgentChatResponse,
     AgentChatResponse,
 )
-from llama_index.llms.base import ChatResponse
+from llama_index.core.llms import ChatResponse
 from typing import Generator
 
 
@@ -65,37 +68,43 @@ class RAGParams(BaseModel):
     )
     chunk_size: int = Field(default=1024, description="Chunk size for vector store.")
     embed_model: str = Field(
-        default="default", description="Embedding model to use (default is OpenAI)"
+        default='gemini', description="Embedding model to use. Set to 'local' to avoid using OpenAI. (default is OpenAI)"
     )
     llm: str = Field(
-        default="gpt-4-1106-preview", description="LLM to use for summarization."
+        default="models/gemini-1.5-flash", description="LLM to use for summarization."
     )
 
 
+# def _resolve_llm(llm_str: str) -> LLM:
+#     """Resolve LLM."""
+#     # TODO: make this less hardcoded with if-else statements
+#     # see if there's a prefix
+#     # - if there isn't, assume it's an OpenAI model
+#     # - if there is, resolve it
+#     tokens = llm_str.split(":")
+#     if len(tokens) == 1 and tokens[0].startswith("gemini"):
+#         os.environ["GOOGLE_API_KEY"] = st.secrets.gemini_key
+#         llm = Gemini(model=tokens[0])
+#     elif tokens[0] == "gemini":
+#         os.environ["GOOGLE_API_KEY"] = st.secrets.gemini_key
+#         llm = Gemini(model=tokens[1])
+#     elif tokens[0] == "openai":
+#         os.environ["OPENAI_API_KEY"] = st.secrets.openai_key
+#         llm = OpenAI(model=tokens[1])
+#     elif tokens[0] == "anthropic":
+#         os.environ["ANTHROPIC_API_KEY"] = st.secrets.anthropic_key
+#         llm = Anthropic(model=tokens[1])
+#     else:
+#         raise ValueError(f"LLM {llm_str} not recognized.")
+#     return llm
+
 def _resolve_llm(llm_str: str) -> LLM:
-    """Resolve LLM."""
-    # TODO: make this less hardcoded with if-else statements
-    # see if there's a prefix
-    # - if there isn't, assume it's an OpenAI model
-    # - if there is, resolve it
     tokens = llm_str.split(":")
-    if len(tokens) == 1:
-        os.environ["OPENAI_API_KEY"] = st.secrets.openai_key
-        llm: LLM = OpenAI(model=llm_str)
-    elif tokens[0] == "local":
-        llm = resolve_llm(llm_str)
-    elif tokens[0] == "openai":
-        os.environ["OPENAI_API_KEY"] = st.secrets.openai_key
-        llm = OpenAI(model=tokens[1])
-    elif tokens[0] == "anthropic":
-        os.environ["ANTHROPIC_API_KEY"] = st.secrets.anthropic_key
-        llm = Anthropic(model=tokens[1])
-    elif tokens[0] == "replicate":
-        os.environ["REPLICATE_API_KEY"] = st.secrets.replicate_key
-        llm = Replicate(model=tokens[1])
+    if tokens[0] == "gemini":
+        os.environ["GOOGLE_API_KEY"] = st.secrets.gemini_key
+        return Gemini(model=tokens[1])
     else:
         raise ValueError(f"LLM {llm_str} not recognized.")
-    return llm
 
 
 def load_data(
@@ -228,21 +237,43 @@ def construct_agent(
 
     # first resolve llm and embedding model
     embed_model = resolve_embed_model(rag_params.embed_model)
+    
     # llm = resolve_llm(rag_params.llm)
     # TODO: use OpenAI for now
     # llm = OpenAI(model=rag_params.llm)
+    # llm = Gemini(model="models/gemini-1.5-flash")
     llm = _resolve_llm(rag_params.llm)
 
     # first let's index the data with the right parameters
-    service_context = ServiceContext.from_defaults(
-        chunk_size=rag_params.chunk_size,
-        llm=llm,
-        embed_model=embed_model,
-    )
+    # service_context = ServiceContext.from_defaults(
+    #     chunk_size=rag_params.chunk_size,
+    #     llm=llm,
+    #     embed_model=embed_model,
+    # )
+    # Đổi thành dòng dưới
+    from llama_index.core.settings import Settings
+
+    # settings = Settings(
+    #     chunk_size=rag_params.chunk_size,
+    #     llm=llm,
+    #     embed_model=embed_model,
+    # )
+
+    print(f"embed_model: {embed_model}")  # Debug
+    print(f"Settings.embed_model: {Settings.embed_model}")  # Debug
+    print(f"rag_params.embed_model: {rag_params.embed_model}")  # Debug
+    print(f"rag_params.llm: {rag_params.llm}")  # Debug
+    print(f"Settings.llm: {Settings.llm}")  # Debug
 
     if vector_index is None:
+        # vector_index = VectorStoreIndex.from_documents(
+        #     docs, service_context=settings
+        # )
         vector_index = VectorStoreIndex.from_documents(
-            docs, service_context=service_context
+            docs,
+            chunk_size=Settings.chunk_size,
+            llm=Settings.llm,
+            embed_model=Settings.embed_model,
         )
     else:
         pass
@@ -263,7 +294,10 @@ def construct_agent(
     all_tools.append(vector_tool)
     if rag_params.include_summarization:
         summary_index = SummaryIndex.from_documents(
-            docs, service_context=service_context
+            docs,
+            chunk_size=Settings.chunk_size,
+            llm=Settings.llm,
+            embed_model=Settings.embed_model,
         )
         summary_query_engine = summary_index.as_query_engine()
         summary_tool = QueryEngineTool(
@@ -287,7 +321,7 @@ def construct_agent(
 
     agent = load_agent(
         all_tools,
-        llm=llm,
+        llm=Settings.llm,
         system_prompt=system_prompt,
         verbose=True,
         extra_kwargs={"vector_index": vector_index, "rag_params": rag_params},
@@ -419,50 +453,93 @@ class MultimodalChatEngine(BaseChatEngine):
         return self.stream_chat(message, chat_history)
 
 
-def construct_mm_agent(
+def construct_agent(
     system_prompt: str,
     rag_params: RAGParams,
     docs: List[Document],
-    mm_vector_index: Optional[VectorStoreIndex] = None,
+    vector_index: Optional[VectorStoreIndex] = None,
     additional_tools: Optional[List] = None,
 ) -> Tuple[BaseChatEngine, Dict]:
-    """Construct agent from docs / parameters / indices.
-
-    NOTE: system prompt isn't used right now
-
-    """
+    """Construct agent from docs / parameters / indices."""
     extra_info = {}
     additional_tools = additional_tools or []
 
-    # first resolve llm and embedding model
+    # Resolve embed model and LLM
     embed_model = resolve_embed_model(rag_params.embed_model)
-    # TODO: use OpenAI for now
-    os.environ["OPENAI_API_KEY"] = st.secrets.openai_key
-    openai_mm_llm = OpenAIMultiModal(model="gpt-4-vision-preview", max_new_tokens=1500)
+    llm = _resolve_llm(rag_params.llm)
 
-    # first let's index the data with the right parameters
-    service_context = ServiceContext.from_defaults(
-        chunk_size=rag_params.chunk_size,
-        embed_model=embed_model,
-    )
+    # Initialize Settings
+    from llama_index.core.settings import Settings
+    # settings = Settings(
+    #     chunk_size=rag_params.chunk_size,
+    #     llm=llm,
+    #     embed_model=embed_model,
+    # )
+    print(f"embed_model1: {embed_model}")  # Debug
+    print(f"Settings.embed_model1: {Settings.embed_model}")  # Debug
+    print(f"rag_params.embed_model1: {rag_params.embed_model}")  # Debug
+    print(f"rag_params.llm1: {rag_params.llm}")  # Debug
+    print(f"Settings.llm1: {Settings.llm}")  # Debug
 
-    if mm_vector_index is None:
-        mm_vector_index = MultiModalVectorStoreIndex.from_documents(
-            docs, service_context=service_context
+    # Create or use existing vector index
+    if vector_index is None:
+        vector_index = VectorStoreIndex.from_documents(
+            docs,
+            chunk_size=Settings.chunk_size,
+            llm=Settings.llm,
+            embed_model=Settings.embed_model,
         )
-    else:
-        pass
 
-    mm_retriever = mm_vector_index.as_retriever(similarity_top_k=rag_params.top_k)
-    mm_query_engine = SimpleMultiModalQueryEngine(
-        cast(MultiModalVectorIndexRetriever, mm_retriever),
-        multi_modal_llm=openai_mm_llm,
+    extra_info["vector_index"] = vector_index
+
+    # Create vector query engine
+    vector_query_engine = vector_index.as_query_engine(
+        similarity_top_k=rag_params.top_k
     )
 
-    extra_info["vector_index"] = mm_vector_index
+    # Create tools
+    all_tools = [
+        QueryEngineTool(
+            query_engine=vector_query_engine,
+            metadata=ToolMetadata(
+                name="vector_tool",
+                description="Use this tool to answer any user question over any data.",
+            ),
+        )
+    ]
 
-    # use condense + context chat engine
-    agent = MultimodalChatEngine(mm_query_engine)
+    # Add summarization tool if needed
+    if rag_params.include_summarization:
+        summary_index = SummaryIndex.from_documents(
+            docs,
+            chunk_size=Settings.chunk_size,
+            llm=Settings.llm,
+            embed_model=Settings.embed_model,
+        )
+        summary_query_engine = summary_index.as_query_engine()
+        summary_tool = QueryEngineTool(
+            query_engine=summary_query_engine,
+            metadata=ToolMetadata(
+                name="summary_tool",
+                description="Use this tool for summarization of content.",
+            ),
+        )
+        all_tools.append(summary_tool)
+
+    # Add additional tools
+    all_tools.extend(additional_tools)
+
+    # Create agent
+    if not system_prompt:
+        raise ValueError("System prompt not set yet. Please set system prompt first.")
+
+    agent = load_agent(
+        tools=all_tools,
+        llm=Settings.llm,  # Sử dụng `llm` từ settings.
+        system_prompt=system_prompt,
+        verbose=True,
+        extra_kwargs={"vector_index": vector_index, "rag_params": rag_params},
+    )
 
     return agent, extra_info
 

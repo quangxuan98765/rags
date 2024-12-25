@@ -1,6 +1,6 @@
 """Streaming callback manager."""
-from llama_index.callbacks.base_handler import BaseCallbackHandler
-from llama_index.callbacks.schema import CBEventType
+from llama_index.core.callbacks.base_handler import BaseCallbackHandler
+from llama_index.core.callbacks.schema import CBEventType
 
 from typing import Optional, Dict, Any, List, Callable
 

@@ -2,8 +2,8 @@
 import streamlit as st
 from st_utils import add_sidebar, get_current_state
 from core.utils import get_image_and_text_nodes
-from llama_index.schema import MetadataMode
-from llama_index.chat_engine.types import AGENT_CHAT_RESPONSE_TYPE
+from llama_index.core.schema import MetadataMode
+from llama_index.core.chat_engine.types import AGENT_CHAT_RESPONSE_TYPE
 from typing import Dict, Optional
 import pandas as pd
 

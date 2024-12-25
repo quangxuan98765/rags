@@ -1,13 +1,13 @@
 """Param cache."""
 
 from pydantic import BaseModel, Field
-from llama_index import (
+from llama_index.core import (
     VectorStoreIndex,
     StorageContext,
     load_index_from_storage,
 )
 from typing import List, cast, Optional
-from llama_index.chat_engine.types import BaseChatEngine
+from llama_index.core.chat_engine.types import BaseChatEngine
 from pathlib import Path
 import json
 import uuid
@@ -16,7 +16,7 @@ from core.utils import (
     get_tool_objects,
     construct_agent,
     RAGParams,
-    construct_mm_agent,
+    construct_agent,
 )
 
 
@@ -110,7 +110,7 @@ class ParamCache(BaseModel):
             persist_dir=str(Path(save_dir) / "storage")
         )
         if cache_dict["builder_type"] == "multimodal":
-            from llama_index.indices.multi_modal.base import MultiModalVectorStoreIndex
+            from llama_index.core.indices.multi_modal.base import MultiModalVectorStoreIndex
 
             vector_index: VectorStoreIndex = cast(
                 MultiModalVectorStoreIndex, load_index_from_storage(storage_context)
@@ -135,7 +135,7 @@ class ParamCache(BaseModel):
 
         if cache_dict["builder_type"] == "multimodal":
             vector_index = cast(MultiModalVectorStoreIndex, vector_index)
-            agent, _ = construct_mm_agent(
+            agent, _ = construct_agent(
                 cache_dict["system_prompt"],
                 cache_dict["rag_params"],
                 cache_dict["docs"],

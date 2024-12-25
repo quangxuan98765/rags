@@ -1,8 +1,8 @@
 """Loader agent."""
 
 from typing import List, cast, Optional
-from llama_index.tools import FunctionTool
-from llama_index.agent.types import BaseAgent
+from llama_index.core.tools import FunctionTool
+from llama_index.core.agent.types import BaseAgent
 from core.builder_config import BUILDER_LLM
 from typing import Tuple, Callable
 import streamlit as st

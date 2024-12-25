@@ -1,3 +1,5 @@
+# 1_🏠_Home.py
+
 import streamlit as st
 from streamlit_pills import pills
 
@@ -12,7 +14,6 @@ current_state = get_current_state()
 ####################
 #### STREAMLIT #####
 ####################
-
 
 st.set_page_config(
     page_title="Build a RAGs bot, powered by LlamaIndex",

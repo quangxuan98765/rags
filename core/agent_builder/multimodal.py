@@ -1,6 +1,6 @@
 """Multimodal agent builder."""
 
-from llama_index.llms import ChatMessage
+from llama_index.core.llms import ChatMessage
 from typing import List, cast, Optional
 from core.builder_config import BUILDER_LLM
 from typing import Dict, Any
@@ -10,21 +10,21 @@ from core.constants import AGENT_CACHE_DIR
 from core.param_cache import ParamCache, RAGParams
 from core.utils import (
     load_data,
-    construct_mm_agent,
+    construct_agent,
 )
 from core.agent_builder.registry import AgentCacheRegistry
 from core.agent_builder.base import GEN_SYS_PROMPT_TMPL, BaseRAGAgentBuilder
 
-from llama_index.chat_engine.types import BaseChatEngine
+from llama_index.core.chat_engine.types import BaseChatEngine
 
-from llama_index.callbacks import trace_method
-from llama_index.query_engine.multi_modal import SimpleMultiModalQueryEngine
-from llama_index.chat_engine.types import (
+from llama_index.core.callbacks import trace_method
+from llama_index.core.query_engine.multi_modal import SimpleMultiModalQueryEngine
+from llama_index.core.chat_engine.types import (
     AGENT_CHAT_RESPONSE_TYPE,
     StreamingAgentChatResponse,
     AgentChatResponse,
 )
-from llama_index.llms.base import ChatResponse
+from llama_index.core.llms import ChatResponse
 from typing import Generator
 
 
@@ -185,21 +185,27 @@ class MultimodalRAGAgentBuilder(BaseRAGAgentBuilder):
         if self._cache.system_prompt is None:
             raise ValueError("Must set system prompt before creating agent.")
 
-        # construct additional tools
-        agent, extra_info = construct_mm_agent(
+        # Thêm đoạn mã thiết lập rag_params
+        self._cache.rag_params = RAGParams(
+            embed_model="gemini",
+            llm="gemini:models/gemini-1.5-flash"  # Thiết lập mô hình Gemini
+        )
+
+        # Construct the agent
+        agent, extra_info = construct_agent(
             cast(str, self._cache.system_prompt),
             cast(RAGParams, self._cache.rag_params),
             self._cache.docs,
         )
 
-        # if agent_id not specified, randomly generate one
+        # Generate agent ID if not provided
         agent_id = agent_id or self._cache.agent_id or f"Agent_{str(uuid.uuid4())}"
         self._cache.builder_type = "multimodal"
         self._cache.vector_index = extra_info["vector_index"]
         self._cache.agent_id = agent_id
         self._cache.agent = agent
 
-        # save the cache to disk
+        # Save the cache to disk
         self._agent_registry.add_new_agent_cache(agent_id, self._cache)
         return "Agent created successfully."
 

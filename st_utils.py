@@ -11,7 +11,7 @@ from core.constants import (
 from typing import Optional, cast
 from pydantic import BaseModel
 
-from llama_index.agent.types import BaseAgent
+from llama_index.core.agent.types import BaseAgent
 import streamlit as st
 
 
